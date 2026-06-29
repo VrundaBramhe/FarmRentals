@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- SPRINT 3 PATCH: Search Debouncing ---
     let debounceTimer; // Create an empty variable to hold our timer
 
-    const searchInput = document.querySelector('.search-input-wrapper input');
+    // Removed redeclaration of searchInput
     
     if (searchInput) {
         searchInput.addEventListener('input', () => {

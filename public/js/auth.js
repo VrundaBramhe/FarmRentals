@@ -112,13 +112,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     alert("Welcome back, " + data.user.name + "!");
                     
-                    // Redirect the user to the marketplace feed
-                    if (response.ok) {
-                    localStorage.setItem('farmUser', JSON.stringify(data.user));
-                    localStorage.setItem('farmToken', data.token); 
-                    
-                    alert("Welcome back, " + data.user.name + "!");
-                    
                     // --- SPRINT 3 PATCH: The Smart Redirect ---
                     const returnUrl = localStorage.getItem('returnUrl');
                     if (returnUrl) {
@@ -127,7 +120,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else {
                         window.location.href = "dashboard.html"; // Standard login behavior
                     }
-                }
                 } else {
                     alert("Login failed: " + data.message);
                 }
