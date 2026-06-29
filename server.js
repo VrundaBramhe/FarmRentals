@@ -87,7 +87,7 @@ if (!fullName || !phone || !password) {
 
         res.status(201).json({ success: true, message: 'Account created successfully!' });
 
-    } catch (error) {
+    }} catch (error) {
         console.error('Registration Error:', error);
         res.status(500).json({ success: false, message: 'Server error during registration.' });
     }
