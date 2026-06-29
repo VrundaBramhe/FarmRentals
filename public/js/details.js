@@ -74,7 +74,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // 4. The Math Logic (Recalculates when dates change)
-    // 4. The Math Logic (Recalculates when dates change)
     function calculateCost() {
         if (startDateInput.value && endDateInput.value) {
             const start = new Date(startDateInput.value);

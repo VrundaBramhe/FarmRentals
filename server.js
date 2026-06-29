@@ -29,7 +29,17 @@ const storage = multer.diskStorage({
         cb(null, Date.now() + path.extname(file.originalname));
     }
 });
-const upload = multer({ storage: storage });
+
+const fileFilter = (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (allowedTypes.includes(file.mimetype)) {
+        cb(null, true);
+    } else {
+        cb(new Error('Invalid file type. Only JPEG, PNG, and WebP are allowed.'));
+    }
+};
+
+const upload = multer({ storage: storage, fileFilter: fileFilter });
 // ==========================================
 // SECURITY MIDDLEWARE: Verify JWT Token
 // ==========================================
@@ -57,6 +67,10 @@ const authenticateToken = (req, res, next) => {
 app.post('/api/register', async (req, res) => {
     try {
         const { fullName, phone, password } = req.body;
+
+        if (!fullName || !phone || !password) {
+            return res.status(400).json({ success: false, message: 'All fields are required.' });
+        }
 
         // Check if this phone number is already registered
         const [existingUsers] = await db.execute('SELECT * FROM Users WHERE PhoneNumber = ?', [phone]);
@@ -208,6 +222,13 @@ app.post('/api/rentals', authenticateToken, async (req, res) => {
         // 2. Server-Side Math: Calculate the true cost
         const start = new Date(startDate);
         const end = new Date(endDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (start < today || end < start) {
+            return res.status(400).json({ success: false, message: 'Invalid dates provided.' });
+        }
+
         const diffTime = Math.abs(end - start);
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include the start day
         
@@ -252,7 +273,9 @@ app.post('/api/equipment', authenticateToken, upload.single('image'), async (req
         if (dailyPrice <= 0) return res.status(400).json({ success: false, message: 'Price must be a positive number.' });
         
         const validDistricts = ['Ahmednagar', 'Akola', 'Amravati', 'Aurangabad', 'Beed', 'Bhandara', 'Buldhana', 'Chandrapur', 'Dhule', 'Gadchiroli', 'Gondia', 'Hingoli', 'Jalgaon', 'Jalna', 'Kolhapur', 'Latur', 'Mumbai City', 'Mumbai Suburban', 'Nagpur', 'Nanded', 'Nandurbar', 'Nashik', 'Osmanabad', 'Palghar', 'Parbhani', 'Pune', 'Raigad', 'Ratnagiri', 'Sangli', 'Satara', 'Sindhudurg', 'Solapur', 'Thane', 'Wardha', 'Washim', 'Yavatmal'];
-        if (!validDistricts.includes(district)) return res.status(400).json({ success: false, message: 'Invalid district selected.' });
+        const normalizedDistrict = validDistricts.find(d => d.toLowerCase() === district.toLowerCase());
+        if (!normalizedDistrict) return res.status(400).json({ success: false, message: 'Invalid district selected.' });
+        const districtToSave = normalizedDistrict; // Use the properly cased district
 
         // Check if an image was actually uploaded
         let imageUrl = 'assets/images/placeholder.jpg'; // Default fallback
@@ -264,7 +287,7 @@ app.post('/api/equipment', authenticateToken, upload.single('image'), async (req
         // We will do this via MySQL Workbench in a moment.
         await db.execute(
             'INSERT INTO Equipment (OwnerID, Category, Description, Daily_Price, District_Location, ImageURL, Status) VALUES (?, ?, ?, ?, ?, ?, "Available")',
-            [ownerId, category, description, dailyPrice, district, imageUrl]
+            [ownerId, category, description, dailyPrice, districtToSave, imageUrl]
         );
 
         res.status(201).json({ success: true, message: 'Equipment listed successfully!' });
@@ -340,6 +363,10 @@ app.put('/api/rentals/:rentalId/status', authenticateToken, async (req, res) => 
     try {
         const { rentalId } = req.params;
         const { status } = req.body; 
+
+        if (!['Approved', 'Rejected'].includes(status)) {
+            return res.status(400).json({ success: false, message: 'Invalid status.' });
+        }
 
         // 1. Verify that the logged-in user actually owns the equipment attached to this rental
         const [rentalData] = await db.execute(`
