@@ -11,130 +11,101 @@ const db = require('./database.js');
 
 const app = express();
 
-// Middleware: Allows our server to understand JSON and talk to the frontend
+// Middleware
 app.use(cors());
 app.use(express.json());
-
-// Crucial: This tells the server to display your frontend files!
 app.use(express.static('public'));
-// ==========================================
-// IMAGE UPLOAD CONFIGURATION (Multer)
-// ==========================================
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'public/uploads'); // Save files to this folder
-    },
-    filename: (req, file, cb) => {
-        // Give the file a unique name (timestamp + original extension)
-        cb(null, Date.now() + path.extname(file.originalname));
-    }
+
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const cloudinary = require('cloudinary').v2;
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
 });
-const upload = multer({ 
-    storage: storage,
-    fileFilter: (req, file, cb) => {
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-        if (allowedTypes.includes(file.mimetype)) {
-            cb(null, true);
-        } else {
-            cb(new Error('Only JPEG, PNG, and WEBP images are allowed!'), false);
-        }
-    }
-});// ==========================================
+
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'farm_rentals',
+    allowed_formats: ['jpg', 'png', 'webp'],
+  },
+});
+
+const upload = multer({ storage: storage });
+
+// ==========================================
 // SECURITY MIDDLEWARE: Verify JWT Token
 // ==========================================
 const authenticateToken = (req, res, next) => {
-    // Look for the token in the headers
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Format: "Bearer <token>"
+    const token = authHeader && authHeader.split(' ')[1];
 
     if (!token) {
         return res.status(401).json({ success: false, message: 'Access Denied. Please log in.' });
     }
 
-    // Verify the token is real and hasn't been tampered with
     jwt.verify(token, process.env.JWT_SECRET || 'farm_super_secret_key_2026', (err, user) => {
         if (err) return res.status(403).json({ success: false, message: 'Invalid or expired session.' });
-        
-        req.user = user; // Attach the verified user data to the request
-        next(); // Let them pass to the actual API route
+        req.user = user;
+        next();
     });
 };
 
 // ==========================================
-// 1. REGISTRATION API (Create Account)
+// 1. REGISTRATION API
 // ==========================================
 app.post('/api/register', async (req, res) => {
     try {
-        
         const { fullName, phone, password } = req.body;
-if (!fullName || !phone || !password) {
-    return res.status(400).json({ success: false, message: 'All fields are required.' });
-        // Check if this phone number is already registered
-        const [existingUsers] = await db.execute('SELECT * FROM Users WHERE PhoneNumber = ?', [phone]);
-        if (existingUsers.length > 0) {
-            return res.status(400).json({ success: false, message: 'Phone number already registered.' });
-        }
+        if (!fullName || !phone || !password) return res.status(400).json({ success: false, message: 'All fields are required.' });
 
-        // Scramble (hash) the password for security
+        const [existingUsers] = await db.execute('SELECT * FROM users WHERE PhoneNumber = ?', [phone]);
+        if (existingUsers.length > 0) return res.status(400).json({ success: false, message: 'Phone number already registered.' });
+
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // Save the new farmer to the database
         await db.execute(
-            'INSERT INTO Users (FullName, PhoneNumber, PasswordHash) VALUES (?, ?, ?)',
+            'INSERT INTO users (FullName, PhoneNumber, PasswordHash) VALUES (?, ?, ?)',
             [fullName, phone, hashedPassword]
         );
 
         res.status(201).json({ success: true, message: 'Account created successfully!' });
-
-    }} catch (error) {
+    } catch (error) {
         console.error('Registration Error:', error);
         res.status(500).json({ success: false, message: 'Server error during registration.' });
     }
 });
 
 // ==========================================
-// 2. LOGIN API (Authenticate User & Give Token)
+// 2. LOGIN API
 // ==========================================
 app.post('/api/login', async (req, res) => {
     try {
         const { phone, password } = req.body;
-
-        // Find the user by their phone number
-        const [users] = await db.execute('SELECT * FROM Users WHERE PhoneNumber = ?', [phone]);
+        const [users] = await db.execute('SELECT * FROM users WHERE PhoneNumber = ?', [phone]);
         
-        if (users.length === 0) {
-            return res.status(401).json({ success: false, message: 'Invalid phone number or password.' });
-        }
+        if (users.length === 0) return res.status(401).json({ success: false, message: 'Invalid phone number or password.' });
 
         const user = users[0];
-
-        // Compare the typed password with the scrambled password in the database
         const isMatch = await bcrypt.compare(password, user.PasswordHash);
         
-        if (!isMatch) {
-            return res.status(401).json({ success: false, message: 'Invalid phone number or password.' });
-        }
+        if (!isMatch) return res.status(401).json({ success: false, message: 'Invalid phone number or password.' });
 
-        // --- SPRINT 1 SECURITY PATCH: Generate the VIP Wristband (JWT) ---
         const token = jwt.sign(
             { id: user.UserID, name: user.FullName, phone: user.PhoneNumber }, 
             process.env.JWT_SECRET || 'farm_super_secret_key_2026', 
-            { expiresIn: '24h' } // Token expires in 1 day
+            { expiresIn: '24h' }
         );
 
-        // Success! Send back the token AND user data
         res.status(200).json({ 
             success: true, 
-            message: 'Login successful!',
             token: token,
-            user: {
-                id: user.UserID,
-                name: user.FullName,
-                phone: user.PhoneNumber
-            }
+            user: { id: user.UserID, name: user.FullName, phone: user.PhoneNumber }
         });
-
     } catch (error) {
         console.error('Login Error:', error);
         res.status(500).json({ success: false, message: 'Server error during login.' });
@@ -142,28 +113,18 @@ app.post('/api/login', async (req, res) => {
 });
 
 // ==========================================
-// 3. EQUIPMENT API (Fetch Marketplace Data)
+// 3. EQUIPMENT API
 // ==========================================
 app.get('/api/equipment', async (req, res) => {
     try {
-        // JOIN to get the owner's name along with the equipment details
         const query = `
-            SELECT 
-                e.EquipmentID, 
-                e.Category, 
-                e.Daily_Price, 
-                e.District_Location, 
-                e.Status,
-                u.FullName AS OwnerName 
-            FROM Equipment e
-            JOIN Users u ON e.OwnerID = u.UserID
+            SELECT e.EquipmentID, e.Category, e.Daily_Price, e.District_Location, e.Status, e.ImageURL, u.FullName AS OwnerName 
+            FROM equipment e
+            JOIN users u ON e.OwnerID = u.UserID
             WHERE e.Status = 'Available'
         `;
-        
         const [equipment] = await db.execute(query);
-        
         res.status(200).json({ success: true, data: equipment });
-
     } catch (error) {
         console.error('Fetch Equipment Error:', error);
         res.status(500).json({ success: false, message: 'Failed to load equipment.' });
@@ -171,257 +132,139 @@ app.get('/api/equipment', async (req, res) => {
 });
 
 // ==========================================
-// 4. SINGLE EQUIPMENT API (For Details Page)
+// 4. SINGLE EQUIPMENT API
 // ==========================================
 app.get('/api/equipment/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const query = `
             SELECT e.*, u.FullName AS OwnerName 
-            FROM Equipment e
-            JOIN Users u ON e.OwnerID = u.UserID
+            FROM equipment e
+            JOIN users u ON e.OwnerID = u.UserID
             WHERE e.EquipmentID = ?
         `;
         const [equipment] = await db.execute(query, [id]);
-        
-        if (equipment.length === 0) {
-            return res.status(404).json({ success: false, message: 'Equipment not found' });
-        }
-        
+        if (equipment.length === 0) return res.status(404).json({ success: false, message: 'Equipment not found' });
         res.status(200).json({ success: true, data: equipment[0] });
     } catch (error) {
-        console.error('Fetch Single Equipment Error:', error);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 });
 
 // ==========================================
-// 5. CREATE RENTAL API (Booking Request)
-// ==========================================
-// ==========================================
-// 5. CREATE RENTAL API (Booking Request - SECURED)
+// 5. CREATE RENTAL API
 // ==========================================
 app.post('/api/rentals', authenticateToken, async (req, res) => {
     try {
-        // We only accept the equipment ID and the dates from the frontend now.
         const { equipmentId, startDate, endDate } = req.body;
-        const renterId = req.user.id; // SECURE: Get ID from the verified JWT token!
+        const renterId = req.user.id;
 
-        // 1. Fetch the real Daily_Price from the database
-        const [equipment] = await db.execute('SELECT Daily_Price, OwnerID FROM Equipment WHERE EquipmentID = ?', [equipmentId]);
+        const todayString = new Date().toISOString().split('T')[0];
+        if (startDate < todayString || endDate < startDate) return res.status(400).json({ success: false, message: 'Invalid dates.' });
+
+        const [equipment] = await db.execute('SELECT Daily_Price, OwnerID FROM equipment WHERE EquipmentID = ?', [equipmentId]);
         if (equipment.length === 0) return res.status(404).json({ success: false, message: 'Equipment not found.' });
-        
-        // Prevent owners from renting their own tools via API hacking
-        if (equipment[0].OwnerID === renterId) {
-            return res.status(403).json({ success: false, message: 'You cannot rent your own equipment.' });
-        }
+        if (equipment[0].OwnerID === renterId) return res.status(403).json({ success: false, message: 'You cannot rent your own equipment.' });
             
-        
-
-        // 2. Server-Side Math: Calculate the true cost
         const start = new Date(startDate);
         const end = new Date(endDate);
-        const today = new Date().setHours(0, 0, 0, 0);
-if (start < today || end < start) {
-    return res.status(400).json({ success: false, message: 'Invalid dates provided.' });
-}
-        const diffTime = Math.abs(end - start);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include the start day
-        
-        if (diffDays <= 0) return res.status(400).json({ success: false, message: 'Invalid dates.' });
-        
+        const diffDays = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24)) + 1;
         const trueTotalCost = diffDays * equipment[0].Daily_Price;
 
-        // 3. Prevent Double Booking: Check for overlapping 'Approved' dates
         const [overlaps] = await db.execute(`
-            SELECT RentalID FROM Rentals 
+            SELECT RentalID FROM rentals 
             WHERE EquipmentID = ? AND Status = 'Approved'
             AND StartDate <= ? AND EndDate >= ?
         `, [equipmentId, endDate, startDate]);
 
-        if (overlaps.length > 0) {
-            return res.status(409).json({ success: false, message: 'This equipment is already booked for these dates.' });
-        }
+        if (overlaps.length > 0) return res.status(409).json({ success: false, message: 'This equipment is already booked.' });
 
-        // 4. Save the verified, secure booking to the database
         await db.execute(
-            'INSERT INTO Rentals (EquipmentID, RenterID, StartDate, EndDate, Total_Cost) VALUES (?, ?, ?, ?, ?)',
+            'INSERT INTO rentals (EquipmentID, RenterID, StartDate, EndDate, Total_Cost, Status) VALUES (?, ?, ?, ?, ?, "Pending")',
             [equipmentId, renterId, startDate, endDate, trueTotalCost]
         );
 
-        res.status(201).json({ success: true, message: 'Booking requested successfully!' });
+        res.status(201).json({ success: true, message: 'Booking requested!' });
     } catch (error) {
-        console.error('Booking Error:', error);
         res.status(500).json({ success: false, message: 'Failed to create booking' });
     }
 });
 
 // ==========================================
-// 6. ADD EQUIPMENT API (Now with Image Upload!)
+// 6. ADD EQUIPMENT API
 // ==========================================
-// Notice the 'upload.single("image")' and 'authenticateToken'
 app.post('/api/equipment', authenticateToken, upload.single('image'), async (req, res) => {
     try {
         const { category, description, dailyPrice, district } = req.body;
-        const ownerId = req.user.id; // Securely get owner ID from token
+        const ownerId = req.user.id;
+        const imageUrl = req.file ? req.file.path : 'https://placehold.co/800x400?text=No+Image';
 
-        // Data Validation
-        if (dailyPrice <= 0) return res.status(400).json({ success: false, message: 'Price must be a positive number.' });
-        const inputDistrict = district.toLowerCase();
-        const validDistricts = [
-  'ahmednagar',
-  'akola',
-  'amravati',
-  'aurangabad',
-  'beed',
-  'bhandara',
-  'buldhana',
-  'chandrapur',
-  'dhule',
-  'gadchiroli',
-  'gondia',
-  'hingoli',
-  'jalgaon',
-  'jalna',
-  'kolhapur',
-  'latur',
-  'mumbai city',
-  'mumbai suburban',
-  'nagpur',
-  'nanded',
-  'nandurbar',
-  'nashik',
-  'osmanabad',
-  'palghar',
-  'parbhani',
-  'pune',
-  'raigad',
-  'ratnagiri',
-  'sangli',
-  'satara',
-  'sindhudurg',
-  'solapur',
-  'thane',
-  'wardha',
-  'washim',
-  'yavatmal'
-];
-if (!validDistricts.includes(inputDistrict)) {
-    return res.status(400).json({ success: false, message: 'Invalid district.' });
-}
-        // if (!validDistricts.includes(district)) return res.status(400).json({ success: false, message: 'Invalid district selected.' });
-
-        // Check if an image was actually uploaded
-        let imageUrl = 'assets/images/placeholder.jpg'; // Default fallback
-        if (req.file) {
-            imageUrl = `uploads/${req.file.filename}`; // The new path!
-        }
-
-        // NOTE: We need to update our database to store the image URL.
-        // We will do this via MySQL Workbench in a moment.
         await db.execute(
-            'INSERT INTO Equipment (OwnerID, Category, Description, Daily_Price, District_Location, ImageURL, Status) VALUES (?, ?, ?, ?, ?, ?, "Available")',
+            'INSERT INTO equipment (OwnerID, Category, Description, Daily_Price, District_Location, ImageURL, Status) VALUES (?, ?, ?, ?, ?, ?, "Available")',
             [ownerId, category, description, dailyPrice, district, imageUrl]
         );
-
-        res.status(201).json({ success: true, message: 'Equipment listed successfully!' });
+        res.status(201).json({ success: true, message: 'Listed successfully!' });
     } catch (error) {
-        console.error('Upload Error:', error);
         res.status(500).json({ success: false, message: 'Failed to add equipment.' });
     }
 });
 
 // ==========================================
-// 7. FETCH RENTER'S BOOKINGS API
+// 7. FETCH RENTER'S BOOKINGS
 // ==========================================
 app.get('/api/rentals/renter/:userId', async (req, res) => {
     try {
-        const { userId } = req.params;
-        
-        // Grab the booking info, the equipment name, and the owner's phone number
         const query = `
-            SELECT 
-                r.RentalID, r.StartDate, r.EndDate, r.Status, 
-                e.Category, 
-                u.PhoneNumber AS OwnerPhone 
-            FROM Rentals r
-            JOIN Equipment e ON r.EquipmentID = e.EquipmentID
-            JOIN Users u ON e.OwnerID = u.UserID
+            SELECT r.RentalID, r.StartDate, r.EndDate, r.Status, e.Category, e.ImageURL, u.PhoneNumber AS OwnerPhone 
+            FROM rentals r
+            JOIN equipment e ON r.EquipmentID = e.EquipmentID
+            JOIN users u ON e.OwnerID = u.UserID
             WHERE r.RenterID = ?
             ORDER BY r.RentalID DESC
         `;
-        
-        const [rentals] = await db.execute(query, [userId]);
+        const [rentals] = await db.execute(query, [req.params.userId]);
         res.status(200).json({ success: true, data: rentals });
-        
     } catch (error) {
-        console.error('Fetch Rentals Error:', error);
         res.status(500).json({ success: false, message: 'Failed to load bookings.' });
     }
 });
 
 // ==========================================
-// 8. FETCH INCOMING REQUESTS (For the Owner)
+// 8. FETCH INCOMING REQUESTS
 // ==========================================
 app.get('/api/requests/:ownerId', async (req, res) => {
     try {
-        const { ownerId } = req.params;
-        
-        // We use a JOIN to get the Renter's name and phone number, plus the tool info
         const query = `
-            SELECT 
-                r.RentalID, r.StartDate, r.EndDate, r.Status, r.Total_Cost,
-                e.Category, 
-                u.FullName AS RenterName, u.PhoneNumber AS RenterPhone 
-            FROM Rentals r
-            JOIN Equipment e ON r.EquipmentID = e.EquipmentID
-            JOIN Users u ON r.RenterID = u.UserID
+            SELECT r.RentalID, r.StartDate, r.EndDate, r.Status, r.Total_Cost, e.Category, e.ImageURL, u.FullName AS RenterName, u.PhoneNumber AS RenterPhone 
+            FROM rentals r
+            JOIN equipment e ON r.EquipmentID = e.EquipmentID
+            JOIN users u ON r.RenterID = u.UserID
             WHERE e.OwnerID = ?
             ORDER BY r.RentalID DESC
         `;
-        
-        const [requests] = await db.execute(query, [ownerId]);
+        const [requests] = await db.execute(query, [req.params.ownerId]);
         res.status(200).json({ success: true, data: requests });
-        
     } catch (error) {
-        console.error('Fetch Incoming Requests Error:', error);
         res.status(500).json({ success: false, message: 'Failed to load requests.' });
     }
 });
 
 // ==========================================
-// 9. UPDATE BOOKING STATUS (Approve/Reject)
+// 9. UPDATE BOOKING STATUS
 // ==========================================
-// SPRINT 1 PATCH: Added authenticateToken and Ownership Verification
 app.put('/api/rentals/:rentalId/status', authenticateToken, async (req, res) => {
     try {
-        
-        const { rentalId } = req.params;
-const { status } = req.body;
-    if (!['Approved', 'Rejected'].includes(status)) {
-        return res.status(400).json({ success: false, message: 'Invalid status.' });
-    }
-        // 1. Verify that the logged-in user actually owns the equipment attached to this rental
+        const { status } = req.body;
         const [rentalData] = await db.execute(`
-            SELECT e.OwnerID 
-            FROM Rentals r
-            JOIN Equipment e ON r.EquipmentID = e.EquipmentID
-            WHERE r.RentalID = ?
-        `, [rentalId]);
+            SELECT e.OwnerID FROM rentals r JOIN equipment e ON r.EquipmentID = e.EquipmentID WHERE r.RentalID = ?
+        `, [req.params.rentalId]);
 
-        if (rentalData.length === 0) return res.status(404).json({ success: false, message: 'Rental request not found.' });
+        if (rentalData.length === 0 || rentalData[0].OwnerID !== req.user.id) return res.status(403).json({ success: false, message: 'Unauthorized' });
 
-        if (rentalData[0].OwnerID !== req.user.id) {
-            return res.status(403).json({ success: false, message: 'Security Alert: You can only approve requests for your own equipment.' });
-        }
-
-        // 2. Update the status
-        await db.execute('UPDATE Rentals SET Status = ? WHERE RentalID = ?', [status, rentalId]);
-
-        res.status(200).json({ success: true, message: `Booking marked as ${status}.` });
+        await db.execute('UPDATE rentals SET Status = ? WHERE RentalID = ?', [status, req.params.rentalId]);
+        res.status(200).json({ success: true, message: `Status updated.` });
     } catch (error) {
-        console.error('Update Status Error:', error);
-        res.status(500).json({ success: false, message: 'Failed to update status.' });
+        res.status(500).json({ success: false, message: 'Failed to update.' });
     }
 });
 
@@ -430,64 +273,32 @@ const { status } = req.body;
 // ==========================================
 app.get('/api/inventory/:ownerId', async (req, res) => {
     try {
-        const { ownerId } = req.params;
-        const [equipment] = await db.execute('SELECT * FROM Equipment WHERE OwnerID = ? ORDER BY EquipmentID DESC', [ownerId]);
+        const [equipment] = await db.execute('SELECT * FROM equipment WHERE OwnerID = ? ORDER BY EquipmentID DESC', [req.params.ownerId]);
         res.status(200).json({ success: true, data: equipment });
     } catch (error) {
-        console.error('Fetch Inventory Error:', error);
         res.status(500).json({ success: false, message: 'Failed to load inventory.' });
     }
 });
 
 // ==========================================
-// 11. DELETE EQUIPMENT (Secured & Graceful)
+// 11. DELETE EQUIPMENT
 // ==========================================
 app.delete('/api/equipment/:id', authenticateToken, async (req, res) => {
     try {
-        const { id } = req.params;
+        const [equipment] = await db.execute('SELECT OwnerID FROM equipment WHERE EquipmentID = ?', [req.params.id]);
+        if (equipment.length === 0 || equipment[0].OwnerID !== req.user.id) return res.status(403).json({ success: false, message: 'Unauthorized' });
 
-        // 1. Check who owns this equipment
-        const [equipment] = await db.execute('SELECT OwnerID FROM Equipment WHERE EquipmentID = ?', [id]);
-        
-        if (equipment.length === 0) {
-            return res.status(404).json({ success: false, message: 'Equipment not found.' });
-        }
+        const [activeRentals] = await db.execute('SELECT RentalID FROM rentals WHERE EquipmentID = ? AND Status IN ("Pending", "Approved")', [req.params.id]);
+        if (activeRentals.length > 0) return res.status(400).json({ success: false, message: 'Cannot delete: active bookings exist.' });
 
-        // 2. Verify Identity (Are you the owner?)
-        if (equipment[0].OwnerID !== req.user.id) {
-            return res.status(403).json({ success: false, message: 'Security Alert: You can only delete your own equipment.' });
-        }
-
-        // --- SPRINT 3 PATCH: Graceful Dependency Check ---
-        // 3. Look for any pending or approved bookings for this specific tool
-        const [activeRentals] = await db.execute(
-            'SELECT RentalID FROM Rentals WHERE EquipmentID = ? AND Status IN ("Pending", "Approved")', 
-            [id]
-        );
-
-        // If bookings exist, gracefully block the deletion BEFORE the database crashes
-        if (activeRentals.length > 0) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Cannot delete this tool. It has active or pending bookings. Please reject or complete them first.' 
-            });
-        }
-        // ------------------------------------------------
-
-        // 4. Safe to Delete
-        await db.execute('DELETE FROM Equipment WHERE EquipmentID = ?', [id]);
-        res.status(200).json({ success: true, message: 'Equipment deleted successfully.' });
-        
+        await db.execute('DELETE FROM equipment WHERE EquipmentID = ?', [req.params.id]);
+        res.status(200).json({ success: true, message: 'Deleted.' });
     } catch (error) {
-        console.error('Delete Equipment Error:', error);
-        res.status(500).json({ success: false, message: 'Server error during deletion.' });
+        res.status(500).json({ success: false, message: 'Server error.' });
     }
 });
 
-// ==========================================
-// START THE SERVER
-// ==========================================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`🚀 FarmRentals server is running live on http://localhost:${PORT}`);
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
 });

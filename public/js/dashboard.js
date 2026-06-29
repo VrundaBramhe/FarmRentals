@@ -1,63 +1,63 @@
-document.addEventListener('DOMContentLoaded', () => {
-    console.log("🚀 Dashboard script loaded and running!");
-    
-    // BULLETPROOF SELECTORS
-    const feedContainer = document.querySelector('.feed-container');
-    const searchInput = document.querySelector('input[type="text"]'); // Grabs any text input
-    const districtFilter = document.querySelector('select'); // Grabs the dropdown
-    
-    console.log("Checking HTML Elements:");
-    console.log("1. Feed Container found?", !!feedContainer);
-    console.log("2. Search Input found?", !!searchInput);
-    console.log("3. District Filter found?", !!districtFilter);
+document.addEventListener("DOMContentLoaded", () => {
+  console.log("🚀 Dashboard script loaded!");
 
-    if (!feedContainer) {
-        console.error("CRITICAL: <div class='feed-container'> is missing from your HTML!");
-        return;
+  const feedContainer = document.querySelector(".feed-container");
+  const searchInput = document.querySelector(".search-input-wrapper input");
+  const districtFilter = document.querySelector(".filter-select");
+
+  if (!feedContainer) return;
+
+  let allEquipment = [];
+
+  async function fetchEquipment() {
+    try {
+      feedContainer.innerHTML =
+        '<p style="text-align:center; padding:20px;">Fetching live equipment...</p>';
+      const response = await fetch("/api/equipment");
+      const result = await response.json();
+
+      if (result.success) {
+        allEquipment = result.data;
+        renderCards(allEquipment);
+      } else {
+        feedContainer.innerHTML = `<p style="color:red; text-align:center;">Failed to load: ${result.message}</p>`;
+      }
+    } catch (error) {
+      feedContainer.innerHTML =
+        '<p style="text-align:center;">Cannot connect to the server.</p>';
+    }
+  }
+
+  function renderCards(equipmentList) {
+    if (equipmentList.length === 0) {
+      feedContainer.innerHTML =
+        '<p style="text-align:center; padding:20px;">No equipment found.</p>';
+      return;
     }
 
-    let allEquipment = []; 
+    feedContainer.innerHTML = `<p class="feed-header">Showing ${equipmentList.length} tools near you</p>`;
 
-    // ==========================================
-    // 1. FETCH DATA FROM SERVER
-    // ==========================================
-    async function fetchEquipment() {
-        try {
-            feedContainer.innerHTML = '<p style="text-align:center; padding:20px;">Fetching live equipment from database...</p>';
-            console.log("📡 Requesting data from backend...");
+    equipmentList.forEach((item) => {
+      // --- THE BULLETPROOF IMAGE LOGIC ---
+      // If the database has a real uploaded image, force it to load from the Node Server (Port 3000)
+      // If it's old data or missing, use a free web placeholder so it never breaks.
+      // Replace your existing 'imagePath' logic with this one-liner:
+      let imagePath = "https://placehold.co/300x200?text=No+Image";
 
-            const response = await fetch('http://localhost:3000/api/equipment');
-            const result = await response.json();
-
-            console.log("📦 Data received:", result);
-
-            if (result.success) {
-                allEquipment = result.data; 
-                renderCards(allEquipment);  
-            } else {
-                feedContainer.innerHTML = `<p style="color:red; text-align:center;">Failed to load: ${result.message}</p>`;
-            }
-        } catch (error) {
-            console.error('Fetch error:', error);
-            feedContainer.innerHTML = '<p style="text-align:center;">Cannot connect to the server. Is Node.js running?</p>';
+      if (item.ImageURL) {
+        // If it's a Cloudinary URL (starts with https), use it as is
+        if (item.ImageURL.startsWith("http")) {
+          imagePath = item.ImageURL;
         }
-    }
-
-    // ==========================================
-    // 2. RENDER HTML CARDS DYNAMICALLY
-    // ==========================================
-    function renderCards(equipmentList) {
-        if (equipmentList.length === 0) {
-            feedContainer.innerHTML = '<p style="text-align:center; padding:20px;">No equipment found in the database. Go add some!</p>';
-            return;
+        // If it's an old local upload (starts with uploads/), prepend localhost
+        else if (item.ImageURL.startsWith("uploads/")) {
+          imagePath = `http://localhost:3000/${item.ImageURL}`;
         }
+      }
 
-        // Clear container and add header
-        feedContainer.innerHTML = `<p style="font-size:0.8rem; color:gray; margin-bottom:10px;">Showing ${equipmentList.length} tools near you</p>`;
-
-        equipmentList.forEach(item => {
-            const cardHTML = `
+      const cardHTML = `
                 <a href="item-details.html?id=${item.EquipmentID}" class="equipment-card" style="display:block; border:1px solid #ddd; padding:15px; border-radius:8px; margin-bottom:15px; text-decoration:none; color:black;">
+                    <img src="${imagePath}" alt="${item.Category}" style="width:100%; height:150px; object-fit:cover; border-radius:4px; margin-bottom:10px;">
                     <h3 style="margin:0 0 10px 0; color:#2C5530;">${item.Category}</h3>
                     <p style="margin:0; font-size:0.9rem;">📍 ${item.District_Location}</p>
                     <div style="display:flex; justify-content:space-between; margin-top:10px; padding-top:10px; border-top:1px solid #eee;">
@@ -66,46 +66,36 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </a>
             `;
-            feedContainer.insertAdjacentHTML('beforeend', cardHTML);
-        });
-    }
+      feedContainer.insertAdjacentHTML("beforeend", cardHTML);
+    });
+  }
 
-    // ==========================================
-    // 3. SEARCH & FILTER LOGIC
-    // ==========================================
-    function applyFilters() {
-        if (!searchInput || !districtFilter) return; // Skip if inputs are missing
+  function applyFilters() {
+    if (!searchInput) return;
 
-        const searchTerm = searchInput.value.toLowerCase();
-        const selectedDistrict = districtFilter.value.toLowerCase();
+    const searchTerm = searchInput.value.toLowerCase();
+    const districtFilterValue = districtFilter ? districtFilter.value : "";
 
-        const filteredData = allEquipment.filter(item => {
-            const searchString = `${item.Category} ${item.OwnerName}`.toLowerCase();
-            const matchesSearch = searchString.includes(searchTerm);
-            const matchesDistrict = selectedDistrict.includes('all') || item.District_Location.toLowerCase() === selectedDistrict;
-            return matchesSearch && matchesDistrict;
-        });
+    const filtered = allEquipment.filter((item) => {
+      const matchesSearch = item.Category.toLowerCase().includes(searchTerm);
+      const matchesDistrict =
+        districtFilterValue === "" ||
+        item.District_Location === districtFilterValue;
+      return matchesSearch && matchesDistrict;
+    });
 
-        renderCards(filteredData);
-    }
+    renderCards(filtered);
+  }
 
-    // --- SPRINT 3 PATCH: Search Debouncing ---
-    let debounceTimer; // Create an empty variable to hold our timer
+  // Debouncing
+  let debounceTimer;
+  if (searchInput) {
+    searchInput.addEventListener("input", () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(applyFilters, 300);
+    });
+  }
+  if (districtFilter) districtFilter.addEventListener("change", applyFilters);
 
-    // const searchInput = document.querySelector('.search-input-wrapper input');
-    
-    if (searchInput) {
-        searchInput.addEventListener('input', () => {
-            clearTimeout(debounceTimer); // Cancel the previous timer if they are still typing
-            
-            // Set a new timer. It will only run applyFilters if 300ms pass without a key press!
-            debounceTimer = setTimeout(() => {
-                applyFilters(); // Assuming applyFilters() is the name of your filtering function
-            }, 300);
-        });
-    }
-    if (districtFilter) districtFilter.addEventListener('change', applyFilters);
-
-    // GO!
-    fetchEquipment();
+  fetchEquipment();
 });

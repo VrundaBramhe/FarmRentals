@@ -165,12 +165,20 @@
   color: var(--color-text-muted);
 }
 
+
+
 @media (min-width: 1024px) {
   .feed-container {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 24px;
-    max-width: 1200px;
+    /* You can keep 3 columns, or change to 4 if you want even more density */
+    grid-template-columns: repeat(3, 1fr); 
+    
+    /* Reduced gap slightly for a cleaner look */
+    gap: 20px; 
+    
+    /* Increased max-width to allow content to spread out */
+    /* Using 95% makes it responsive to any screen size */
+    max-width: 95%; 
     margin: 0 auto;
     padding: 24px;
   }

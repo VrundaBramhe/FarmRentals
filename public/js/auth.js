@@ -1,141 +1,141 @@
 // Wait for the HTML to fully load before running the script
-document.addEventListener('DOMContentLoaded', () => {
-    
-    // 1. Grab the HTML elements we need to manipulate
-    const loginSection = document.getElementById('login-section');
-    const registerSection = document.getElementById('register-section');
-    
-    // Grab the links that the user will click to toggle views
-    const showRegisterLink = document.querySelector('#login-section .auth-footer-link a');
-    const showLoginLink = document.querySelector('#register-section .auth-footer-link a');
+document.addEventListener("DOMContentLoaded", () => {
+  // 1. Grab the HTML elements we need to manipulate
+  const loginSection = document.getElementById("login-section");
+  const registerSection = document.getElementById("register-section");
 
-    // 2. Function to show Registration and hide Login
-    if (showRegisterLink) {
-        showRegisterLink.addEventListener('click', (e) => {
-            e.preventDefault(); // Stops the page from refreshing
-            loginSection.style.display = 'none';
-            registerSection.style.display = 'block';
+  // Grab the links that the user will click to toggle views
+  const showRegisterLink = document.querySelector(
+    "#login-section .auth-footer-link a",
+  );
+  const showLoginLink = document.querySelector(
+    "#register-section .auth-footer-link a",
+  );
+
+  // 2. Function to show Registration and hide Login
+  if (showRegisterLink) {
+    showRegisterLink.addEventListener("click", (e) => {
+      e.preventDefault(); // Stops the page from refreshing
+      loginSection.style.display = "none";
+      registerSection.style.display = "block";
+    });
+  }
+
+  // 3. Function to show Login and hide Registration
+  if (showLoginLink) {
+    showLoginLink.addEventListener("click", (e) => {
+      e.preventDefault(); // Stops the page from refreshing
+      registerSection.style.display = "none";
+      loginSection.style.display = "block";
+    });
+  }
+
+  // ==========================================
+  // 1. REGISTRATION LOGIC (Sending data to backend)
+  // ==========================================
+  const registerBtn = document.querySelector("#register-section .btn-primary");
+  // Grabs all 4 inputs: [0] Name, [1] Phone, [2] Password, [3] Confirm
+  const registerInputs = document.querySelectorAll(
+    "#register-section .input-field",
+  );
+
+  if (registerBtn) {
+    registerBtn.addEventListener("click", async (e) => {
+      e.preventDefault(); // Stop the page from reloading
+
+      const fullName = registerInputs[0].value.trim();
+      const phone = registerInputs[1].value.trim();
+      const password = registerInputs[2].value;
+      const confirmPassword = registerInputs[3].value;
+
+      // Basic checks before bothering the server
+      if (!fullName || !phone || !password)
+        return alert("Please fill in all fields.");
+      if (password !== confirmPassword) return alert("Passwords do not match!");
+
+      try {
+        registerBtn.innerText = "Creating..."; // Show loading state
+
+        // Send the data to our Node.js server!
+        const response = await fetch("/api/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fullName, phone, password }),
         });
-    }
 
-    // 3. Function to show Login and hide Registration
-    if (showLoginLink) {
-        showLoginLink.addEventListener('click', (e) => {
-            e.preventDefault(); // Stops the page from refreshing
-            registerSection.style.display = 'none';
-            loginSection.style.display = 'block';
+        const data = await response.json();
+
+        if (response.ok) {
+          localStorage.setItem("farmUser", JSON.stringify(data.user));
+          localStorage.setItem("farmToken", data.token);
+          alert("Welcome back, " + data.user.name + "!");
+          window.location.href = "dashboard.html";
+        } else {
+          alert("Login failed: " + data.message);
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Failed to connect to the server. Is Node.js running?");
+      } finally {
+        registerBtn.innerText = "Create My Account"; // Reset button text
+      }
+    });
+  }
+
+  // ==========================================
+  // 2. LOGIN LOGIC (Authenticating and Redirecting)
+  // ==========================================
+  // ==========================================
+  // 2. LOGIN LOGIC (Cleaned up)
+  // ==========================================
+  const loginBtn = document.querySelector("#login-section .btn-primary");
+  const loginInputs = document.querySelectorAll("#login-section .input-field");
+
+  if (loginBtn) {
+    loginBtn.addEventListener("click", async (e) => {
+      e.preventDefault();
+
+      const phone = loginInputs[0].value.trim();
+      const password = loginInputs[1].value;
+
+      if (!phone || !password)
+        return alert("Please enter both phone and password.");
+
+      try {
+        loginBtn.innerText = "Logging in...";
+
+        const response = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone, password }),
         });
-    }
 
-    // ==========================================
-    // 1. REGISTRATION LOGIC (Sending data to backend)
-    // ==========================================
-    const registerBtn = document.querySelector('#register-section .btn-primary');
-    // Grabs all 4 inputs: [0] Name, [1] Phone, [2] Password, [3] Confirm
-    const registerInputs = document.querySelectorAll('#register-section .input-field'); 
+        const data = await response.json();
 
-    if (registerBtn) {
-        registerBtn.addEventListener('click', async (e) => {
-            e.preventDefault(); // Stop the page from reloading
-            
-            const fullName = registerInputs[0].value.trim();
-            const phone = registerInputs[1].value.trim();
-            const password = registerInputs[2].value;
-            const confirmPassword = registerInputs[3].value;
+        if (response.ok) {
+          // Save the user data AND the JWT token
+          localStorage.setItem("farmUser", JSON.stringify(data.user));
+          localStorage.setItem("farmToken", data.token);
 
-            // Basic checks before bothering the server
-            if (!fullName || !phone || !password) return alert("Please fill in all fields.");
-            if (password !== confirmPassword) return alert("Passwords do not match!");
+          alert("Welcome back, " + data.user.name + "!");
 
-            try {
-                registerBtn.innerText = "Creating..."; // Show loading state
-
-                // Send the data to our Node.js server!
-                const response = await fetch('http://localhost:3000/api/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ fullName, phone, password })
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    localStorage.setItem('farmUser', JSON.stringify(data.user));
-                    localStorage.setItem('farmToken', data.token);
-                    alert("Welcome back, " + data.user.name + "!");
-                    window.location.href = "dashboard.html";
-                } else {
-                    alert("Login failed: " + data.message);
-                }
-            } catch (err) {
-                console.error(err);
-                alert("Failed to connect to the server. Is Node.js running?");
-            } finally {
-                registerBtn.innerText = "Create My Account"; // Reset button text
-            }
-        });
-    }
-
-    // ==========================================
-    // 2. LOGIN LOGIC (Authenticating and Redirecting)
-    // ==========================================
-    const loginBtn = document.querySelector('#login-section .btn-primary');
-    // Grabs the 2 inputs: [0] Phone, [1] Password
-    const loginInputs = document.querySelectorAll('#login-section .input-field'); 
-
-    if (loginBtn) {
-        loginBtn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            
-            const phone = loginInputs[0].value.trim();
-            const password = loginInputs[1].value;
-
-            if (!phone || !password) return alert("Please enter both phone and password.");
-
-            try {
-                loginBtn.innerText = "Logging in...";
-
-                const response = await fetch('http://localhost:3000/api/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ phone, password })
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    // --- SPRINT 1 SECURITY PATCH ---
-                    // Save the user data AND the JWT token to the browser's memory
-                    localStorage.setItem('farmUser', JSON.stringify(data.user));
-                    localStorage.setItem('farmToken', data.token); // The VIP wristband is caught!
-                    
-                    alert("Welcome back, " + data.user.name + "!");
-                    
-                    // Redirect the user to the marketplace feed
-                    if (response.ok) {
-                    localStorage.setItem('farmUser', JSON.stringify(data.user));
-                    localStorage.setItem('farmToken', data.token); 
-                    
-                    alert("Welcome back, " + data.user.name + "!");
-                    
-                    // --- SPRINT 3 PATCH: The Smart Redirect ---
-                    const returnUrl = localStorage.getItem('returnUrl');
-                    if (returnUrl) {
-                        localStorage.removeItem('returnUrl'); // Clean up the bookmark
-                        window.location.href = returnUrl;     // Teleport them back to the tool!
-                    } else {
-                        window.location.href = "dashboard.html"; // Standard login behavior
-                    }
-                }
-                } else {
-                    alert("Login failed: " + data.message);
-                }
-            } catch (err) {
-                console.error(err);
-                alert("Failed to connect to the server.");
-            } finally {
-                loginBtn.innerText = "Log In";
-            }
-        });
-    }
+          // Smart Redirect
+          const returnUrl = localStorage.getItem("returnUrl");
+          if (returnUrl) {
+            localStorage.removeItem("returnUrl");
+            window.location.href = returnUrl;
+          } else {
+            window.location.href = "dashboard.html";
+          }
+        } else {
+          alert("Login failed: " + data.message);
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Failed to connect to the server.");
+      } finally {
+        loginBtn.innerText = "Log In";
+      }
+    });
+  }
 });
