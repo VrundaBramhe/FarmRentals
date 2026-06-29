@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FarmRentals — Equipment Details</title>
+  <link rel="stylesheet" href="css/global.css">
+</head>
+<body class="details-page">
+  <nav class="navbar" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: white; border-bottom: 1px solid #eaeaea; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+    <div class="nav-left">
+      <a href="dashboard.html" style="text-decoration: none;">
+        <h1 class="logo" style="margin: 0; font-size: 1.5rem; color: #333;">Farm<span style="color: #2C5530;">Rentals</span></h1>
+      </a>
+    </div>
+    <div class="nav-right" style="display: flex; align-items: center; gap: 20px;"></div> 
+  </nav>
+
+  <img src="assets/images/placeholder.jpg" alt="Mahindra 275 DI Tractor" class="details-hero-img">
+
+  <div class="details-body">
+    <div>
+      <h1 class="details-title">Mahindra 275 DI Tractor</h1>
+      <p class="details-price">₹800 / day</p>
+    </div>
+
+    <span class="badge-pending" style="display: inline-flex; align-items: center; gap: 4px; align-self: flex-start;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+        <circle cx="12" cy="10" r="3"></circle>
+      </svg>
+      Nagpur
+    </span>
+
+    <div class="details-owner-block">
+      <div class="owner-avatar">R</div>
+      <div class="owner-info">
+        <p>Ramesh Kulkarni</p>
+        <p>Equipment Owner</p>
+      </div>
+    </div>
+
+    <div class="details-description">
+      <h3>About this equipment</h3>
+      <p id="dynamic-description">Loading description...</p>
+    </div>
+
+    <div class="booking-console">
+      <div class="date-inputs-row">
+        <div class="date-group">
+          <label for="start-date">Start Date</label>
+          <input type="date" id="start-date" class="input-field">
+        </div>
+        <div class="date-group">
+          <label for="end-date">End Date</label>
+          <input type="date" id="end-date" class="input-field">
+        </div>
+      </div>
+      <p class="cost-estimate">Estimated Total: <strong>₹0</strong></p>
+      <button class="btn-primary">Request to Rent</button>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+  <script src="js/details.js"></script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FarmRentals — My Rentals</title>
+  <link rel="stylesheet" href="css/global.css">
+</head>
+<body class="rentals-page">
+  <nav class="navbar" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: white; border-bottom: 1px solid #eaeaea; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+    <div class="nav-left">
+      <a href="dashboard.html" style="text-decoration: none;">
+        <h1 class="logo" style="margin: 0; font-size: 1.5rem; color: #333;">Farm<span style="color: #2C5530;">Rentals</span></h1>
+      </a>
+    </div>
+    <div class="nav-right" style="display: flex; align-items: center; gap: 20px;"></div> 
+  </nav>
+
+  <div class="rentals-body">
+    <h2 class="section-title">My Bookings</h2>
+    <div class="rental-list">
+      <div class="rental-item">
+        <div class="rental-item-top">
+          <img class="rental-thumb" src="assets/images/placeholder.jpg" alt="Mahindra 275 DI">
+          <div class="rental-info">
+            <div class="rental-name">Mahindra 275 DI</div>
+            <div class="rental-dates">Jun 10 – Jun 12, 2025</div>
+          </div>
+        </div>
+        <div class="rental-status-col">
+          <span class="badge-approved">Approved</span>
+          <button class="btn-call">📞 Call Owner: 9823001122</button>
+        </div>
+      </div>
+
+      <div class="rental-item">
+        <div class="rental-item-top">
+          <img class="rental-thumb" src="assets/images/placeholder.jpg" alt="Fieldking Rotavator">
+          <div class="rental-info">
+            <div class="rental-name">Fieldking Rotavator</div>
+            <div class="rental-dates">Jun 15 – Jun 16, 2025</div>
+          </div>
+        </div>
+        <div class="rental-status-col">
+          <span class="badge-pending">Pending</span>
+        </div>
+      </div>
+
+      <div class="rental-item">
+        <div class="rental-item-top">
+          <img class="rental-thumb" src="assets/images/placeholder.jpg" alt="Kirloskar Water Pump">
+          <div class="rental-info">
+            <div class="rental-name">Kirloskar Water Pump</div>
+            <div class="rental-dates">Jun 18 – Jun 20, 2025</div>
+          </div>
+        </div>
+        <div class="rental-status-col">
+          <span class="badge-approved">Approved</span>
+          <button class="btn-call">📞 Call Owner: 9011002233</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+  <script src="js/my-rentals.js"></script>
+</body>
+</html>
