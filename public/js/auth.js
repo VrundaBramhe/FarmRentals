@@ -60,13 +60,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await response.json();
 
                 if (response.ok) {
-                    alert("Account created successfully! You can now log in.");
-                    // Clear the form and switch to login view
-                    registerInputs.forEach(input => input.value = '');
-                    document.getElementById('register-section').style.display = 'none';
-                    document.getElementById('login-section').style.display = 'block';
+                    localStorage.setItem('farmUser', JSON.stringify(data.user));
+                    localStorage.setItem('farmToken', data.token);
+                    alert("Welcome back, " + data.user.name + "!");
+                    window.location.href = "dashboard.html";
                 } else {
-                    alert("Error: " + data.message);
+                    alert("Login failed: " + data.message);
                 }
             } catch (err) {
                 console.error(err);
