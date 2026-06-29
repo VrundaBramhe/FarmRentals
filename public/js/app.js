@@ -64,8 +64,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // 4. Logout Logic
         document.getElementById('logout-btn').addEventListener('click', (e) => {
             e.preventDefault();
-            localStorage.removeItem('farmUser'); // Wipe the session
-            window.location.href = 'index.html'; // Teleport to login screen
+            localStorage.removeItem('farmUser'); 
+            localStorage.removeItem('farmToken'); // Destroy the wristband
+            window.location.href = 'index.html'; 
         });
 
     } else {

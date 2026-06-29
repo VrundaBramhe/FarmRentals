@@ -72,20 +72,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 4. Handle Approvals/Rejections
     // We attach this to the 'window' object so the inline onclick HTML can trigger it
+    // 4. SECURE Handle Approvals/Rejections
     window.updateStatus = async (rentalId, newStatus) => {
         if (!confirm(`Are you sure you want to mark this request as ${newStatus}?`)) return;
+
+        // Grab the token from storage
+        const token = localStorage.getItem('farmToken');
 
         try {
             const response = await fetch(`http://localhost:3000/api/rentals/${rentalId}/status`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` // Show the wristband!
+                },
                 body: JSON.stringify({ status: newStatus })
             });
 
             const result = await response.json();
             
             if (result.success) {
-                // Refresh the data instantly to show the new badges
                 fetchRequests();
             } else {
                 alert("Error updating status: " + result.message);

@@ -105,13 +105,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await response.json();
 
                 if (response.ok) {
-                    // Save the user data to the browser's memory so they stay logged in!
+                    // --- SPRINT 1 SECURITY PATCH ---
+                    // Save the user data AND the JWT token to the browser's memory
                     localStorage.setItem('farmUser', JSON.stringify(data.user));
+                    localStorage.setItem('farmToken', data.token); // The VIP wristband is caught!
                     
                     alert("Welcome back, " + data.user.name + "!");
                     
-                    // MAGIC: Redirect the user to the marketplace feed!
-                    window.location.href = "dashboard.html";
+                    // Redirect the user to the marketplace feed
+                    if (response.ok) {
+                    localStorage.setItem('farmUser', JSON.stringify(data.user));
+                    localStorage.setItem('farmToken', data.token); 
+                    
+                    alert("Welcome back, " + data.user.name + "!");
+                    
+                    // --- SPRINT 3 PATCH: The Smart Redirect ---
+                    const returnUrl = localStorage.getItem('returnUrl');
+                    if (returnUrl) {
+                        localStorage.removeItem('returnUrl'); // Clean up the bookmark
+                        window.location.href = returnUrl;     // Teleport them back to the tool!
+                    } else {
+                        window.location.href = "dashboard.html"; // Standard login behavior
+                    }
+                }
                 } else {
                     alert("Login failed: " + data.message);
                 }

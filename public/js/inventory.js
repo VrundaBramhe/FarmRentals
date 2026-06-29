@@ -80,23 +80,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // 3. Delete logic
+    // 3. SECURE Delete logic
     window.deleteItem = async (equipmentId) => {
         if (!confirm("Are you sure you want to permanently delete this listing?")) return;
 
+        // Grab the token from storage
+        const token = localStorage.getItem('farmToken'); 
+
         try {
             const response = await fetch(`http://localhost:3000/api/equipment/${equipmentId}`, { 
-                method: 'DELETE' 
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}` // Show the wristband to the backend bouncer!
+                }
             });
             const result = await response.json();
             
             if (result.success) {
-                fetchInventory(); // Instantly re-draws the list without the deleted item
+                fetchInventory(); // Instantly re-draws the list
             } else {
                 alert(result.message);
             }
         } catch (error) {
             console.error(error);
-            alert("Failed to delete the item. It might have active booking requests tied to it.");
+            alert("Failed to delete the item.");
         }
     };
 

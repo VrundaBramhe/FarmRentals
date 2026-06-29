@@ -89,7 +89,21 @@ document.addEventListener('DOMContentLoaded', () => {
         renderCards(filteredData);
     }
 
-    if (searchInput) searchInput.addEventListener('input', applyFilters);
+    // --- SPRINT 3 PATCH: Search Debouncing ---
+    let debounceTimer; // Create an empty variable to hold our timer
+
+    const searchInput = document.querySelector('.search-input-wrapper input');
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            clearTimeout(debounceTimer); // Cancel the previous timer if they are still typing
+            
+            // Set a new timer. It will only run applyFilters if 300ms pass without a key press!
+            debounceTimer = setTimeout(() => {
+                applyFilters(); // Assuming applyFilters() is the name of your filtering function
+            }, 300);
+        });
+    }
     if (districtFilter) districtFilter.addEventListener('change', applyFilters);
 
     // GO!
